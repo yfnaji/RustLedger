@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use csv::{ReaderBuilder, StringRecord, Reader};
+use csv::{StringRecord};
 
 pub struct Transaction {
     pub tx_type: String,
@@ -28,53 +28,25 @@ pub struct Account {
     pub transactions: Vec<Transaction>,
 }
 
-pub fn get_transactions(file_path: &str) -> Vec<Transaction> {
-    let mut rdr: Reader<std::fs::File> = ReaderBuilder::new().from_path(file_path).unwrap();
-    let mut transactions: Vec<Transaction> = vec![];
-    
-    for result in rdr.records() {
-        match result {
-            Ok(rcd) => {
-                    let (tx_type, client_id, tx, amount) = match process_row(rcd) {
-                    Ok(data) => data,
-                    Err(_) => continue,
-                };
-                transactions.push(
-                    Transaction {
-                        tx_type,
-                        client_id,
-                        tx,
-                        amount,
-                        disputed: false,
-                    }
-                );
-            }
-            Err(_) => continue,
-        }
-    }
-
-    transactions
-}
-
-fn process_row(result: StringRecord) -> Result<(String, u16, u32, Option<f32>), ()> {
+pub fn process_row(result: StringRecord) -> Result<(String, u16, u32, Option<f32>), ()> {
     let record: StringRecord = result;
-    let tx_type: String = get_tx_type(&record)?;
-    let client_id: u16 = get_client_id(&record)?;
-    let tx: u32 = get_tx(&record)?;
-    let amount: Option<f32>= get_amount(&record)?;
+    let tx_type: String = get_string(&record)?;
+    let client_id: u16 = get_int_u16(&record, 1)?;
+    let tx: u32 = get_int_u32(&record, 2)?;
+    let amount: Option<f32>= get_float(&record)?;
     
     Ok((tx_type, client_id, tx, amount))
 }
 
-fn get_tx_type(record: &StringRecord) -> Result<String, ()> {
+fn get_string(record: &StringRecord) -> Result<String, ()> {
     match record.get(0) {
         Some(tx_type) => Ok(tx_type.trim().to_string()),
         None => Err(()),
     }
 }
 
-fn get_client_id(record: &StringRecord) -> Result<u16, ()> {
-    match record.get(1) {
+fn get_int_u16(record: &StringRecord, index: usize) -> Result<u16, ()> {
+    match record.get(index) {
         Some(id) => {
             match id.trim().parse() {
                 Ok(numeric_id) => Ok(numeric_id),
@@ -86,8 +58,8 @@ fn get_client_id(record: &StringRecord) -> Result<u16, ()> {
     }
 }
 
-fn get_tx(record: &StringRecord) -> Result<u32, ()> {
-    match record.get(2) {
+fn get_int_u32(record: &StringRecord, index: usize) -> Result<u32, ()> {
+    match record.get(index) {
         Some(id) => {
             match id.trim().parse() {
                 Ok(numeric_id) => Ok(numeric_id),
@@ -99,7 +71,8 @@ fn get_tx(record: &StringRecord) -> Result<u32, ()> {
     }
 }
 
-fn get_amount(record: &StringRecord) -> Result<Option<f32>, ()> {
+
+fn get_float(record: &StringRecord) -> Result<Option<f32>, ()> {
     match record.get(3) {
         Some(amount_str) if !amount_str.is_empty() => {
             match amount_str.trim().parse() {

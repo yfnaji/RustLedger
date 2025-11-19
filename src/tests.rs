@@ -1,16 +1,24 @@
+#[cfg(test)]
 mod functional_tests {
     use crate::*;
+    use crate::utils::{Account, Transaction};
+    use crate::ledger::process_transaction;
 
-    #[allow(dead_code)]
     fn check_account(account: &Account, available: f32, held: f32, locked: bool) {
         assert_eq!(account.available, available);
         assert_eq!(account.held, held);
         assert_eq!(account.locked, locked);
     }
 
+    fn process_multiple_transactions(transactions: &mut Vec<Transaction>, accounts: &mut HashMap<u16, Account>){
+        for transaction in transactions.iter_mut() {
+            process_transaction(transaction, accounts);
+        }
+    }
+
     #[test]
     fn test_deposit_then_withdrawal() {
-        let transactions: Vec<crate::utils::Transaction> = vec![
+        let transactions: &mut Vec<Transaction> = &mut vec![
             crate::utils::Transaction {
                 tx_type: "deposit".to_string(),
                 client_id: 1,
@@ -26,7 +34,8 @@ mod functional_tests {
                 disputed: false,
             },
         ];
-        let accounts: HashMap<u16, Account> = process_transactions(transactions);
+        let accounts: &mut HashMap<u16, Account> = &mut HashMap::new();
+        process_multiple_transactions(transactions, accounts);
         let account: &Account = accounts.get(&1).unwrap();
 
         check_account(account, 50.0, 0.0, false);
@@ -34,7 +43,7 @@ mod functional_tests {
 
     #[test]
     fn test_deposit_with_larger_withdrawal() {
-        let transactions: Vec<Transaction> = vec![
+        let transactions: &mut Vec<Transaction> = &mut vec![
             Transaction {
                 tx_type: "deposit".to_string(),
                 client_id: 1,
@@ -50,7 +59,8 @@ mod functional_tests {
                 disputed: false,
             },
         ];
-        let accounts: HashMap<u16, Account> = process_transactions(transactions);
+        let accounts: &mut HashMap<u16, Account> = &mut HashMap::new();
+        process_multiple_transactions(transactions, accounts);
         let account: &Account = accounts.get(&1).unwrap();
 
         check_account(account, 100.0, 0.0, false);
@@ -58,7 +68,7 @@ mod functional_tests {
 
     #[test]
     fn test_dispute_on_withdrawal() {
-        let transactions: Vec<Transaction> = vec![
+        let transactions: &mut Vec<Transaction> = &mut vec![
             Transaction {
                 tx_type: "deposit".to_string(),
                 client_id: 1,
@@ -81,7 +91,8 @@ mod functional_tests {
                 disputed: false,
             },
         ];
-        let accounts: HashMap<u16, Account> = process_transactions(transactions);
+        let accounts: &mut HashMap<u16, Account> = &mut HashMap::new();
+        process_multiple_transactions(transactions, accounts);
         let account: &Account = accounts.get(&1).unwrap();
 
         check_account(account, 50.0, 0.0, false);
@@ -89,7 +100,7 @@ mod functional_tests {
 
     #[test]
     fn test_dispute_on_already_disputed_deposit() {
-        let transactions: Vec<Transaction> = vec![
+        let transactions: &mut Vec<Transaction> = &mut vec![
             Transaction {
                 tx_type: "deposit".to_string(),
                 client_id: 1,
@@ -112,7 +123,8 @@ mod functional_tests {
                 disputed: false,
             },
         ];
-        let accounts: HashMap<u16, Account> = process_transactions(transactions);
+        let accounts: &mut HashMap<u16, Account> = &mut HashMap::new();
+        process_multiple_transactions(transactions, accounts);
         let account: &Account = accounts.get(&1).unwrap();
 
         check_account(account, 0.0, 100.0, false);
@@ -120,7 +132,7 @@ mod functional_tests {
 
     #[test]
     fn test_dispute_on_nonexistent_transaction() {
-        let transactions: Vec<Transaction> = vec![
+        let transactions: &mut Vec<Transaction> = &mut vec![
             Transaction {
                 tx_type: "deposit".to_string(),
                 client_id: 1,
@@ -136,7 +148,8 @@ mod functional_tests {
                 disputed: false,
             },
         ];
-        let accounts: HashMap<u16, Account> = process_transactions(transactions);
+        let accounts: &mut HashMap<u16, Account> = &mut HashMap::new();
+        process_multiple_transactions(transactions, accounts);
         let account: &Account = accounts.get(&1).unwrap();
 
         check_account(account, 100.0, 0.0, false);
@@ -144,7 +157,7 @@ mod functional_tests {
 
     #[test]
     fn test_resolve_on_non_disputed_transaction() {
-        let transactions: Vec<Transaction> = vec![
+        let transactions: &mut Vec<Transaction> = &mut vec![
             Transaction {
                 tx_type: "deposit".to_string(),
                 client_id: 1,
@@ -160,7 +173,8 @@ mod functional_tests {
                 disputed: false,
             },
         ];
-        let accounts: HashMap<u16, Account> = process_transactions(transactions);
+        let accounts: &mut HashMap<u16, Account> = &mut HashMap::new();
+        process_multiple_transactions(transactions, accounts);
         let account: &Account = accounts.get(&1).unwrap();
 
         check_account(account, 100.0, 0.0, false);
@@ -168,7 +182,7 @@ mod functional_tests {
 
     #[test]
     fn test_resolve_on_non_existent_transaction() {
-        let transactions: Vec<Transaction> = vec![
+        let transactions: &mut Vec<Transaction> = &mut vec![
             Transaction {
                 tx_type: "deposit".to_string(),
                 client_id: 1,
@@ -184,7 +198,8 @@ mod functional_tests {
                 disputed: false,
             },
         ];
-        let accounts: HashMap<u16, Account> = process_transactions(transactions);
+        let accounts: &mut HashMap<u16, Account> = &mut HashMap::new();
+        process_multiple_transactions(transactions, accounts);
         let account: &Account = accounts.get(&1).unwrap();
 
         check_account(account, 100.0, 0.0, false);
@@ -192,7 +207,7 @@ mod functional_tests {
 
     #[test]
     fn test_on_non_disputed_transaction() {
-        let transactions: Vec<Transaction> = vec![
+        let transactions: &mut Vec<Transaction> = &mut vec![
             Transaction {
                 tx_type: "deposit".to_string(),
                 client_id: 1,
@@ -208,7 +223,8 @@ mod functional_tests {
                 disputed: false,
             },
         ];
-        let accounts: HashMap<u16, Account> = process_transactions(transactions);
+        let accounts: &mut HashMap<u16, Account> = &mut HashMap::new();
+        process_multiple_transactions(transactions, accounts);
         let account: &Account = accounts.get(&1).unwrap();
 
         check_account(account, 100.0, 0.0, false);
@@ -216,7 +232,7 @@ mod functional_tests {
 
     #[test]
     fn test_chargeback_on_non_existent_transaction() {
-        let transactions: Vec<Transaction> = vec![
+        let transactions: &mut Vec<Transaction> = &mut vec![
             Transaction {
                 tx_type: "deposit".to_string(),
                 client_id: 1,
@@ -232,7 +248,8 @@ mod functional_tests {
                 disputed: false,
             },
         ];
-        let accounts: HashMap<u16, Account> = process_transactions(transactions);
+        let accounts: &mut HashMap<u16, Account> = &mut HashMap::new();
+        process_multiple_transactions(transactions, accounts);
         let account: &Account = accounts.get(&1).unwrap();
 
         check_account(account, 100.0, 0.0, false);
@@ -240,7 +257,7 @@ mod functional_tests {
 
     #[test]
     fn test_dispute_with_insufficient_funds() {
-        let transactions: Vec<Transaction> = vec![
+        let transactions: &mut Vec<Transaction> = &mut vec![
             Transaction {
                 tx_type: "deposit".to_string(),
                 client_id: 1,
@@ -263,7 +280,8 @@ mod functional_tests {
                 disputed: false,
             },
         ];
-        let accounts: HashMap<u16, Account> = process_transactions(transactions);
+        let accounts: &mut HashMap<u16, Account> = &mut HashMap::new();
+        process_multiple_transactions(transactions, accounts);
         let account: &Account = accounts.get(&1).unwrap();
 
         check_account(account, 50.0, 0.0, false);
@@ -271,7 +289,7 @@ mod functional_tests {
 
     #[test]
     fn test_two_deposits_both_disputed() {
-        let transactions: Vec<Transaction> = vec![
+        let transactions: &mut Vec<Transaction> = &mut vec![
             Transaction {
                 tx_type: "deposit".to_string(),
                 client_id: 1,
@@ -301,7 +319,8 @@ mod functional_tests {
                 disputed: false,
             },
         ];
-        let accounts: HashMap<u16, Account> = process_transactions(transactions);
+        let accounts: &mut HashMap<u16, Account> = &mut HashMap::new();
+        process_multiple_transactions(transactions, accounts);
         let account: &Account = accounts.get(&1).unwrap();
 
         check_account(account, 0.0, 150.0, false);
@@ -309,7 +328,7 @@ mod functional_tests {
 
     #[test]
     fn test_two_deposits_both_resolved() {
-        let transactions: Vec<Transaction> = vec![
+        let transactions: &mut Vec<Transaction> = &mut vec![
             Transaction {
                 tx_type: "deposit".to_string(),
                 client_id: 1,
@@ -353,7 +372,8 @@ mod functional_tests {
                 disputed: false,
             },
         ];
-        let accounts: HashMap<u16, Account> = process_transactions(transactions);
+        let accounts: &mut HashMap<u16, Account> = &mut HashMap::new();
+        process_multiple_transactions(transactions, accounts);
         let account: &Account = accounts.get(&1).unwrap();
 
         check_account(account, 150.0, 0.0, false);
@@ -361,7 +381,7 @@ mod functional_tests {
 
     #[test]
     fn test_two_disputes_one_resolved_one_chargeback() {
-        let transactions: Vec<Transaction> = vec![
+        let transactions: &mut Vec<Transaction> = &mut vec![
             Transaction {
                 tx_type: "deposit".to_string(),
                 client_id: 1,
@@ -405,7 +425,8 @@ mod functional_tests {
                 disputed: false,
             },
         ];
-        let accounts: HashMap<u16, Account> = process_transactions(transactions);
+        let accounts: &mut HashMap<u16, Account> = &mut HashMap::new();
+        process_multiple_transactions(transactions, accounts);
         let account: &Account = accounts.get(&1).unwrap();
 
         check_account(account, 100.0, 0.0, true);
@@ -413,7 +434,7 @@ mod functional_tests {
 
     #[test]
     fn test_no_recorded_transactions_after_chargeback() {
-        let transactions: Vec<Transaction> = vec![
+        let transactions: &mut Vec<Transaction> = &mut vec![
             Transaction {
                 tx_type: "deposit".to_string(),
                 client_id: 1,
@@ -444,7 +465,8 @@ mod functional_tests {
             },
 
         ];
-        let accounts: HashMap<u16, Account> = process_transactions(transactions);
+        let accounts: &mut HashMap<u16, Account> = &mut HashMap::new();
+        process_multiple_transactions(transactions, accounts);
         let account: &Account = accounts.get(&1).unwrap();
 
         check_account(account, 0.0, 0.0, true);
@@ -453,7 +475,7 @@ mod functional_tests {
 
     #[test]
     fn test_multi_client_transactions() {
-        let transactions: Vec<Transaction> = vec![
+        let transactions: &mut Vec<Transaction> = &mut vec![
             Transaction {
                 tx_type: "deposit".to_string(),
                 client_id: 1,
@@ -525,7 +547,8 @@ mod functional_tests {
                 disputed: false,
             },
         ];
-        let accounts: HashMap<u16, Account> = process_transactions(transactions);
+        let accounts: &mut HashMap<u16, Account> = &mut HashMap::new();
+        process_multiple_transactions(transactions, accounts);
         let account1: &Account = accounts.get(&1).unwrap();
         let account2: &Account = accounts.get(&2).unwrap();
 
@@ -535,7 +558,7 @@ mod functional_tests {
 
     #[test]
     fn test_floating_point_precision() {
-        let transactions: Vec<Transaction> = vec![
+        let transactions: &mut Vec<Transaction> = &mut vec![
             Transaction {
                 tx_type: "deposit".to_string(),
                 client_id: 1,
@@ -558,7 +581,8 @@ mod functional_tests {
                 disputed: false,
             },
         ];
-        let accounts: HashMap<u16, Account> = process_transactions(transactions);
+        let accounts: &mut HashMap<u16, Account> = &mut HashMap::new();
+        process_multiple_transactions(transactions, accounts);
         let account: &Account = accounts.get(&1).unwrap();
 
         assert_eq!((account.available * 10000.0).round() / 10000.0, 70.6666);
@@ -568,7 +592,7 @@ mod functional_tests {
 
     #[test]
     fn test_empty_deposit_amount() {
-        let transactions: Vec<Transaction> = vec![
+        let transactions: &mut Vec<Transaction> = &mut vec![
             Transaction {
                 tx_type: "deposit".to_string(),
                 client_id: 1,
@@ -577,7 +601,8 @@ mod functional_tests {
                 disputed: false,
             },
         ];
-        let accounts: HashMap<u16, Account> = process_transactions(transactions);
+        let accounts: &mut HashMap<u16, Account> = &mut HashMap::new();
+        process_multiple_transactions(transactions, accounts);
         let account: &Account = accounts.get(&1).unwrap();
 
         check_account(account, 0.0, 0.0, false);
@@ -585,7 +610,7 @@ mod functional_tests {
 
     #[test]
     fn fn_test_empty_withdrawal_amount() {
-        let transactions: Vec<Transaction> = vec![
+        let transactions: &mut Vec<Transaction> = &mut vec![
             Transaction {
                 tx_type: "deposit".to_string(),
                 client_id: 1,
@@ -601,7 +626,8 @@ mod functional_tests {
                 disputed: false,
             },
         ];
-        let accounts: HashMap<u16, Account> = process_transactions(transactions);
+        let accounts: &mut HashMap<u16, Account> = &mut HashMap::new();
+        process_multiple_transactions(transactions, accounts);
         let account: &Account = accounts.get(&1).unwrap();
 
         check_account(account, 100.0, 0.0, false);

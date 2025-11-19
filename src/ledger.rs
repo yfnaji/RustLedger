@@ -1,23 +1,46 @@
 use std::collections::HashMap;
-use crate::utils::{Account, Transaction};
+use csv::{ReaderBuilder, Reader};
+use crate::utils::{Account, Transaction, process_row};
 
-pub fn process_transactions(mut transactions: Vec<Transaction>) -> HashMap<u16, Account> {
+pub fn get_transactions(file_path: &str) -> HashMap<u16, Account> {
+    let mut rdr: Reader<std::fs::File> = ReaderBuilder::new().from_path(file_path).unwrap();
     let mut accounts: HashMap<u16, Account> = HashMap::new();
-    for transaction in transactions.iter_mut() {
-
-        accounts.entry(transaction.client_id).or_insert_with(|| Account {
-            available: 0.0,
-            held: 0.0,
-            locked: false,
-            transactions: vec![],
-        });
-        
-        let account: &mut Account = accounts.get_mut(&transaction.client_id).unwrap();
-        if !account.locked {
-            transaction_engine(transaction, account);
+    
+    for result in rdr.records() {
+        match result {
+            Ok(rcd) => {
+                    let (tx_type, client_id, tx, amount) = match process_row(rcd) {
+                    Ok(data) => data,
+                    Err(_) => continue,
+                };
+                let mut transaction: Transaction = Transaction {
+                    tx_type,
+                    client_id,
+                    tx,
+                    amount,
+                    disputed: false,
+                };
+                process_transaction(&mut transaction, &mut accounts);
+            }
+            Err(_) => continue,
         }
     }
+
     accounts
+}
+
+pub fn process_transaction(transaction: &mut Transaction, accounts: &mut HashMap<u16, Account>) {
+
+    accounts.entry(transaction.client_id).or_insert_with(|| Account {
+        available: 0.0,
+        held: 0.0,
+        locked: false,
+        transactions: vec![],
+    });
+    let account: &mut Account = accounts.get_mut(&transaction.client_id).unwrap();
+    if !account.locked {
+        transaction_engine(transaction, account);
+    }
 }
 
 fn transaction_engine(transaction: &mut Transaction, account: &mut Account) {
@@ -29,24 +52,23 @@ fn transaction_engine(transaction: &mut Transaction, account: &mut Account) {
             };
         },
         "withdrawal" => {
-             if let Some(withdrawal_amount) = transaction.amount {
-                if account.available >= withdrawal_amount {
+             if let Some(withdrawal_amount) = transaction.amount 
+                && account.available >= withdrawal_amount {
                      account.available -= withdrawal_amount;
                      add_transaction_to_account(account, transaction);
-                }
+                
             };
         },
         "dispute" => {
             let search_transaction: Option<&mut Transaction> = search_matching_deposit_transaction(transaction.tx, &mut account.transactions, false);
-            if let Some(deposit_transaction) = search_transaction {
-                if deposit_transaction.amount.unwrap() <= account.available {
+            if let Some(deposit_transaction) = search_transaction
+                && deposit_transaction.amount.unwrap() <= account.available {
                     let amount_move_to_held: f32 = deposit_transaction.amount.unwrap();
                     account.available -= amount_move_to_held;
                     account.held += amount_move_to_held;
                     deposit_transaction.disputed = true;
                     add_transaction_to_account(account, transaction);
                 }
-            }
         },
         "resolve" => {
             let search_transaction: Option<&mut Transaction> = search_matching_disputed_transaction(transaction.tx, &mut account.transactions);
@@ -97,19 +119,32 @@ fn add_transaction_to_account(account: &mut Account, transaction: &Transaction) 
     );
 }
 
+#[cfg(test)]
 mod unittests {
     use super::*;
 
-    #[allow(dead_code)]
-    fn check_account(account: &Account, available: f32, held: f32, locked: bool) {
-        assert_eq!(account.available, available);
-        assert_eq!(account.held, held);
-        assert_eq!(account.locked, locked);
+    #[test]
+    fn test_process_transaction() {
+        let transaction: &mut Transaction = &mut Transaction {
+            tx_type: "deposit".to_string(),
+            client_id: 1,
+            tx: 1,
+            amount: Some(100.0),
+            disputed: false,
+        };
+        let accounts: &mut HashMap<u16, Account> = &mut HashMap::new();
+        process_transaction(transaction, accounts);
+
+        let account: &Account = accounts.get(&1).unwrap();
+        assert_eq!(account.available, 100.0);
+        assert_eq!(account.held, 0.0);
+        assert_eq!(account.locked, false);
+        assert_eq!(account.transactions.len(), 1);
     }
 
     #[test]
-    fn test_process_transactions() {
-        let transactions: Vec<Transaction> = vec![
+    fn test_process_transaction_locked() {
+        let transactions: &mut Vec<Transaction> = &mut vec![
             Transaction {
                 tx_type: "deposit".to_string(),
                 client_id: 1,
@@ -118,17 +153,31 @@ mod unittests {
                 disputed: false,
             },
             Transaction {
-                tx_type: "withdrawal".to_string(),
+                tx_type: "dispute".to_string(),
                 client_id: 1,
-                tx: 2,
-                amount: Some(50.0),
+                tx: 1,
+                amount: None,
+                disputed: false,
+            },
+            Transaction {
+                tx_type: "chargeback".to_string(),
+                client_id: 1,
+                tx: 1,
+                amount: None,
                 disputed: false,
             },
         ];
-        let accounts: HashMap<u16, Account> = process_transactions(transactions);
-        let account: &Account = accounts.get(&1).unwrap();
+        let accounts: &mut HashMap<u16, Account> = &mut HashMap::new();
         
-        check_account(account, 50.0, 0.0, false);
+        for transaction in transactions.iter_mut() {
+            process_transaction(transaction, accounts);
+        }
+
+        let account: &Account = accounts.get(&1).unwrap();
+        assert_eq!(account.available, 0.0);
+        assert_eq!(account.held, 0.0);
+        assert!(account.locked);
+        assert_eq!(account.transactions.len(), 3);
     }
 
     #[test]

@@ -25,7 +25,7 @@ pub struct Account {
     pub available: f32,
     pub held: f32,
     pub locked: bool,
-    pub transactions: Vec<Transaction>,
+    pub transactions: HashMap<u32, Vec<Transaction>>,
 }
 
 pub fn process_row(result: StringRecord) -> Result<(String, u16, u32, Option<f32>), ()> {

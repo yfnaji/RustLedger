@@ -470,7 +470,7 @@ mod functional_tests {
         let account: &Account = accounts.get(&1).unwrap();
 
         check_account(account, 0.0, 0.0, true);
-        assert_eq!(account.transactions.len(), 3);
+        assert_eq!(account.transactions[&1].len(), 3);
     }
 
     #[test]

@@ -2,14 +2,14 @@ use std::collections::HashMap;
 use csv::{ReaderBuilder, Reader};
 use crate::utils::{Account, Transaction, process_row};
 
-pub fn get_transactions(file_path: &str) -> HashMap<u16, Account> {
+pub fn summarize_accounts(file_path: &str) -> HashMap<u16, Account> {
     let mut rdr: Reader<std::fs::File> = ReaderBuilder::new().from_path(file_path).unwrap();
     let mut accounts: HashMap<u16, Account> = HashMap::new();
     
     for result in rdr.records() {
         match result {
-            Ok(rcd) => {
-                    let (tx_type, client_id, tx, amount) = match process_row(rcd) {
+            Ok(record) => {
+                    let (tx_type, client_id, tx, amount) = match process_row(record) {
                     Ok(data) => data,
                     Err(_) => continue,
                 };
@@ -39,11 +39,11 @@ pub fn process_transaction(transaction: &mut Transaction, accounts: &mut HashMap
     });
     let account: &mut Account = accounts.get_mut(&transaction.client_id).unwrap();
     if !account.locked {
-        transaction_engine(transaction, account);
+        apply_transaction_to_account(transaction, account);
     }
 }
 
-fn transaction_engine(transaction: &mut Transaction, account: &mut Account) {
+fn apply_transaction_to_account(transaction: &mut Transaction, account: &mut Account) {
     match transaction.tx_type.as_str() {
         "deposit" => {
             if let Some(deposit_amount) = transaction.amount {
@@ -181,7 +181,7 @@ mod unittests {
     }
 
     #[test]
-    fn test_transaction_engine_deposit() {
+    fn test_apply_transaction_to_account_deposit() {
         let mut transaction: Transaction = Transaction {
             tx_type: "deposit".to_string(),
             client_id: 1,
@@ -196,7 +196,7 @@ mod unittests {
             transactions: vec![],
         };
 
-        transaction_engine(&mut transaction, &mut account);
+        apply_transaction_to_account(&mut transaction, &mut account);
 
         assert_eq!(account.available, 100.0);
         assert_eq!(account.held, 0.0);
@@ -204,7 +204,7 @@ mod unittests {
     }
 
     #[test]
-    fn test_transaction_engine_withdrawal() {
+    fn test_apply_transaction_to_account_withdrawal() {
         let mut transaction: Transaction = Transaction {
             tx_type: "withdrawal".to_string(),
             client_id: 1,
@@ -219,7 +219,7 @@ mod unittests {
             transactions: vec![],
         };
 
-        transaction_engine(&mut transaction, &mut account);
+        apply_transaction_to_account(&mut transaction, &mut account);
 
         assert_eq!(account.available, 50.0);
         assert_eq!(account.held, 0.0);
@@ -227,7 +227,7 @@ mod unittests {
     }
 
     #[test]
-    fn test_transaction_engine_dispute() {
+    fn test_apply_transaction_to_account_dispute() {
         let mut transaction: Transaction = Transaction {
             tx_type: "dispute".to_string(),
             client_id: 1,
@@ -257,7 +257,7 @@ mod unittests {
             ],
         };
 
-        transaction_engine(&mut transaction, &mut account);
+        apply_transaction_to_account(&mut transaction, &mut account);
 
         assert_eq!(account.available, 100.0);
         assert_eq!(account.held, 50.0);
@@ -266,7 +266,7 @@ mod unittests {
     }
 
     #[test]
-    fn test_transaction_engine_resolve() {
+    fn test_apply_transaction_to_account_resolve() {
         let mut transaction: Transaction = Transaction {
             tx_type: "resolve".to_string(),
             client_id: 1,
@@ -303,7 +303,7 @@ mod unittests {
             ],
         };
 
-        transaction_engine(&mut transaction, &mut account);
+        apply_transaction_to_account(&mut transaction, &mut account);
 
         assert_eq!(account.available, 150.0);
         assert_eq!(account.held, 0.0);
@@ -312,7 +312,7 @@ mod unittests {
     }
 
     #[test]
-    fn test_transaction_engine_chargeback() {
+    fn test_apply_transaction_to_account_chargeback() {
         let mut transaction: Transaction = Transaction {
             tx_type: "chargeback".to_string(),
             client_id: 1,
@@ -349,7 +349,7 @@ mod unittests {
             ],
         };
 
-        transaction_engine(&mut transaction, &mut account);
+        apply_transaction_to_account(&mut transaction, &mut account);
 
         assert_eq!(account.available, 100.0);
         assert_eq!(account.held, 0.0);
